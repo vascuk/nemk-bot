@@ -13,39 +13,45 @@ const mainKeyboard = Markup.keyboard([
     ['ℹ️ Про бота']
 ]).resize().persistent();
 
-const userData = new Map();
+// Зберігаємо дані для кожного чату (групи або особистого)
+const chatData = new Map();
 
-function getUserData(userId) {
-    if (!userData.has(userId)) {
-        userData.set(userId, { welcomeMessageId: null, lastResponseId: null });
+function getChatData(chatId) {
+    if (!chatData.has(chatId)) {
+        chatData.set(chatId, { welcomeMessageId: null, lastResponseId: null });
     }
-    return userData.get(userId);
+    return chatData.get(chatId);
 }
 
-async function deleteLastResponse(ctx) {
-    const data = getUserData(ctx.from.id);
+async function deleteLastResponse(chatId, ctx) {
+    const data = getChatData(chatId);
     if (data.lastResponseId) {
         try {
-            await ctx.telegram.deleteMessage(ctx.chat.id, data.lastResponseId);
+            await ctx.telegram.deleteMessage(chatId, data.lastResponseId);
             data.lastResponseId = null;
         } catch (err) {}
     }
 }
 
 async function showWelcome(ctx) {
-    const data = getUserData(ctx.from.id);
+    const chatId = ctx.chat.id;
+    const data = getChatData(chatId);
     
-    // Видаляємо старе вітальне повідомлення
     if (data.welcomeMessageId) {
         try {
-            await ctx.telegram.deleteMessage(ctx.chat.id, data.welcomeMessageId);
+            await ctx.telegram.deleteMessage(chatId, data.welcomeMessageId);
         } catch(e) {}
         data.welcomeMessageId = null;
     }
     
-    const userName = ctx.from.first_name || ctx.from.username || 'користувач';
+    const userName = ctx.from?.first_name || ctx.from?.username || 'користувач';
+    const isGroup = ctx.chat.type !== 'private';
+    const greeting = isGroup 
+        ? `👋 <b>Вітаю, ${userName}!</b>\n\nРозклад групи ${ctx.chat.title || 'цього чату'}`
+        : `👋 <b>Вітаю, ${userName}!</b>`;
+    
     const msg = await ctx.replyWithHTML(
-        `👋 <b>Вітаю, ${userName}!</b>\n\n` +
+        `${greeting}\n\n` +
         `🤖 Цей бот створено за підтримки <b>студентського самоврядування</b>\n` +
         `<b>Нововолинського електромеханічного фахового коледжу</b>\n\n` +
         `📚 Тут ви можете швидко переглянути актуальний розклад занять.\n\n` +
@@ -56,22 +62,31 @@ async function showWelcome(ctx) {
 }
 
 async function sendReply(ctx, text, extraKeyboard = null) {
-    await deleteLastResponse(ctx);
-    const data = getUserData(ctx.from.id);
+    const chatId = ctx.chat.id;
+    await deleteLastResponse(chatId, ctx);
+    const data = getChatData(chatId);
     const options = extraKeyboard || mainKeyboard;
     const msg = await ctx.replyWithHTML(text, options);
     data.lastResponseId = msg.message_id;
 }
 
-async function deleteUserCommand(ctx) {
-    if (ctx.message && ctx.message.text && ctx.message.text !== '/start') {
-        try { await ctx.deleteMessage(); } catch(e) {}
+// Перевіряємо, чи команда викликана в особистому чаті або групі
+function isCommandForBot(ctx) {
+    if (ctx.chat.type === 'private') return true;
+    // У групі бот реагує тільки на команди з @username
+    const botUsername = ctx.botInfo?.username;
+    if (ctx.message?.text?.startsWith('/') && botUsername) {
+        return ctx.message.text.includes(`@${botUsername}`) || !ctx.message.text.includes('@');
     }
+    return false;
 }
 
+// Обробник для команд у групах
 bot.use(async (ctx, next) => {
-    if (ctx.message && ctx.message.text && ctx.message.text !== '/start') {
-        try { await ctx.deleteMessage(); } catch(e) {}
+    if (ctx.message && ctx.message.text && ctx.message.text.startsWith('/')) {
+        if (isCommandForBot(ctx)) {
+            return next();
+        }
     }
     return next();
 });
@@ -148,9 +163,9 @@ bot.action('main_menu', async (ctx) => {
     await showWelcome(ctx);
 });
 
+// Команди через меню
 bot.command(['rozklad', 'site', 'journal', 'about'], async (ctx) => {
-    await deleteUserCommand(ctx);
-    const cmd = ctx.message.text.slice(1);
+    const cmd = ctx.message.text.slice(1).split('@')[0];
     if (cmd === 'rozklad') {
         await sendReply(
             ctx,
@@ -183,6 +198,7 @@ bot.command(['rozklad', 'site', 'journal', 'about'], async (ctx) => {
     }
 });
 
+// Меню бота
 bot.telegram.setMyCommands([
     { command: 'start', description: '🏠 Головна' },
     { command: 'rozklad', description: '📅 Розклад' },
