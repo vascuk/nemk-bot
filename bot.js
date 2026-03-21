@@ -7,13 +7,14 @@ const APP_URL = 'https://rozklad.nemk.com.ua';
 const COLLEGE_URL = 'https://nemk.com.ua';
 const JOURNAL_URL = 'https://journalelectro.com';
 
+// Клавіатура (тільки для особистих чатів)
 const mainKeyboard = Markup.keyboard([
     ['🏠 Головна', '📅 Розклад'],
     ['🏫 Сайт коледжу', '📖 Журнал'],
     ['ℹ️ Про бота']
 ]).resize().persistent();
 
-// Зберігаємо дані для кожного чату (групи або особистого)
+// Зберігаємо дані для кожного чату
 const chatData = new Map();
 
 function getChatData(chatId) {
@@ -36,6 +37,7 @@ async function deleteLastResponse(chatId, ctx) {
 async function showWelcome(ctx) {
     const chatId = ctx.chat.id;
     const data = getChatData(chatId);
+    const isPrivate = ctx.chat.type === 'private';
     
     if (data.welcomeMessageId) {
         try {
@@ -45,10 +47,12 @@ async function showWelcome(ctx) {
     }
     
     const userName = ctx.from?.first_name || ctx.from?.username || 'користувач';
-    const isGroup = ctx.chat.type !== 'private';
-    const greeting = isGroup 
-        ? `👋 <b>Вітаю, ${userName}!</b>\n\nРозклад групи ${ctx.chat.title || 'цього чату'}`
-        : `👋 <b>Вітаю, ${userName}!</b>`;
+    const greeting = isPrivate 
+        ? `👋 <b>Вітаю, ${userName}!</b>`
+        : `👋 <b>Вітаю, ${userName}!</b>\n\nРозклад групи <b>${ctx.chat.title || 'цього чату'}</b>`;
+    
+    // Клавіатуру показуємо ТІЛЬКИ в особистих чатах
+    const options = isPrivate ? mainKeyboard : { reply_markup: { remove_keyboard: true } };
     
     const msg = await ctx.replyWithHTML(
         `${greeting}\n\n` +
@@ -56,37 +60,58 @@ async function showWelcome(ctx) {
         `<b>Нововолинського електромеханічного фахового коледжу</b>\n\n` +
         `📚 Тут ви можете швидко переглянути актуальний розклад занять.\n\n` +
         `👇 Обери дію за допомогою кнопок нижче:`,
-        mainKeyboard
+        options
     );
     data.welcomeMessageId = msg.message_id;
 }
 
 async function sendReply(ctx, text, extraKeyboard = null) {
     const chatId = ctx.chat.id;
+    const isPrivate = ctx.chat.type === 'private';
     await deleteLastResponse(chatId, ctx);
     const data = getChatData(chatId);
-    const options = extraKeyboard || mainKeyboard;
+    
+    // Клавіатуру показуємо ТІЛЬКИ в особистих чатах
+    let options;
+    if (extraKeyboard) {
+        options = extraKeyboard;
+    } else if (isPrivate) {
+        options = mainKeyboard;
+    } else {
+        options = { reply_markup: { remove_keyboard: true } };
+    }
+    
     const msg = await ctx.replyWithHTML(text, options);
     data.lastResponseId = msg.message_id;
 }
 
-// Перевіряємо, чи команда викликана в особистому чаті або групі
+// Видалення повідомлень користувача ТІЛЬКИ в особистих чатах
+bot.use(async (ctx, next) => {
+    if (ctx.message && ctx.message.text && ctx.message.text !== '/start') {
+        if (ctx.chat.type === 'private') {
+            try { await ctx.deleteMessage(); } catch(e) {}
+        }
+    }
+    return next();
+});
+
+// Перевірка, чи команда звернена до бота (для груп)
 function isCommandForBot(ctx) {
     if (ctx.chat.type === 'private') return true;
-    // У групі бот реагує тільки на команди з @username
     const botUsername = ctx.botInfo?.username;
     if (ctx.message?.text?.startsWith('/') && botUsername) {
-        return ctx.message.text.includes(`@${botUsername}`) || !ctx.message.text.includes('@');
+        return ctx.message.text.includes(`@${botUsername}`);
     }
     return false;
 }
 
-// Обробник для команд у групах
+// Обробник команд у групах
 bot.use(async (ctx, next) => {
     if (ctx.message && ctx.message.text && ctx.message.text.startsWith('/')) {
         if (isCommandForBot(ctx)) {
             return next();
         }
+        return;
     }
     return next();
 });
@@ -96,74 +121,82 @@ bot.start(async (ctx) => {
     await showWelcome(ctx);
 });
 
-// Кнопка "Головна"
+// Обробка текстових кнопок ТІЛЬКИ в особистих чатах
 bot.hears('🏠 Головна', async (ctx) => {
-    await showWelcome(ctx);
+    if (ctx.chat.type === 'private') {
+        await showWelcome(ctx);
+    }
 });
 
-// Кнопка "Розклад"
 bot.hears('📅 Розклад', async (ctx) => {
-    await sendReply(
-        ctx,
-        `📅 <b>Розклад занять</b>\n\nНатисніть кнопку нижче, щоб відкрити актуальний розклад:`,
-        Markup.inlineKeyboard([
-            [Markup.button.webApp('📖 Відкрити розклад', APP_URL)],
-            [Markup.button.callback('🏠 Головна', 'main_menu')]
-        ]).persistent()
-    );
+    if (ctx.chat.type === 'private') {
+        await sendReply(
+            ctx,
+            `📅 <b>Розклад занять</b>\n\nНатисніть кнопку нижче, щоб відкрити актуальний розклад:`,
+            Markup.inlineKeyboard([
+                [Markup.button.webApp('📖 Відкрити розклад', APP_URL)],
+                [Markup.button.callback('🏠 Головна', 'main_menu')]
+            ]).persistent()
+        );
+    }
 });
 
-// Кнопка "Сайт коледжу"
 bot.hears('🏫 Сайт коледжу', async (ctx) => {
-    await sendReply(
-        ctx,
-        `🏫 <b>Нововолинський електромеханічний фаховий коледж</b>\n\n` +
-        `<a href="${COLLEGE_URL}">nemk.com.ua</a>`,
-        Markup.inlineKeyboard([
-            [Markup.button.url('🌐 Перейти на сайт', COLLEGE_URL)],
-            [Markup.button.callback('🏠 Головна', 'main_menu')]
-        ]).persistent()
-    );
+    if (ctx.chat.type === 'private') {
+        await sendReply(
+            ctx,
+            `🏫 <b>Нововолинський електромеханічний фаховий коледж</b>\n\n` +
+            `<a href="${COLLEGE_URL}">nemk.com.ua</a>`,
+            Markup.inlineKeyboard([
+                [Markup.button.url('🌐 Перейти на сайт', COLLEGE_URL)],
+                [Markup.button.callback('🏠 Головна', 'main_menu')]
+            ]).persistent()
+        );
+    }
 });
 
-// Кнопка "Журнал"
 bot.hears('📖 Журнал', async (ctx) => {
-    await sendReply(
-        ctx,
-        `📖 <b>Електронний журнал</b>\n\n<a href="${JOURNAL_URL}">journalelectro.com</a>`,
-        Markup.inlineKeyboard([
-            [Markup.button.url('📖 Відкрити журнал', JOURNAL_URL)],
-            [Markup.button.callback('🏠 Головна', 'main_menu')]
-        ]).persistent()
-    );
+    if (ctx.chat.type === 'private') {
+        await sendReply(
+            ctx,
+            `📖 <b>Електронний журнал</b>\n\n<a href="${JOURNAL_URL}">journalelectro.com</a>`,
+            Markup.inlineKeyboard([
+                [Markup.button.url('📖 Відкрити журнал', JOURNAL_URL)],
+                [Markup.button.callback('🏠 Головна', 'main_menu')]
+            ]).persistent()
+        );
+    }
 });
 
-// Кнопка "Про бота"
 bot.hears('ℹ️ Про бота', async (ctx) => {
-    await sendReply(
-        ctx,
-        `<b>🤖 Про бота</b>\n\n` +
-        `Цей бот створено для зручного доступу до розкладу занять.\n\n` +
-        `👨‍💻 <b>Розробник:</b> Ващук Роман\n` +
-        `🏫 <b>Коледж:</b> Нововолинський електромеханічний фаховий коледж\n` +
-        `🤝 <b>Підтримка:</b> студентське самоврядування\n\n` +
-        `<b>🔗 Корисні посилання:</b>\n` +
-        `• <a href="${APP_URL}">📅 Розклад занять</a>\n` +
-        `• <a href="${COLLEGE_URL}">🏫 Сайт коледжу</a>\n` +
-        `• <a href="${JOURNAL_URL}">📖 Електронний журнал</a>`,
-        Markup.inlineKeyboard([
-            [Markup.button.webApp('📅 Відкрити розклад', APP_URL)],
-            [Markup.button.callback('🏠 Головна', 'main_menu')]
-        ]).persistent()
-    );
+    if (ctx.chat.type === 'private') {
+        await sendReply(
+            ctx,
+            `<b>🤖 Про бота</b>\n\n` +
+            `Цей бот створено для зручного доступу до розкладу занять.\n\n` +
+            `👨‍💻 <b>Розробник:</b> Ващук Роман\n` +
+            `🏫 <b>Коледж:</b> Нововолинський електромеханічний фаховий коледж\n` +
+            `🤝 <b>Підтримка:</b> студентське самоврядування\n\n` +
+            `<b>🔗 Корисні посилання:</b>\n` +
+            `• <a href="${APP_URL}">📅 Розклад занять</a>\n` +
+            `• <a href="${COLLEGE_URL}">🏫 Сайт коледжу</a>\n` +
+            `• <a href="${JOURNAL_URL}">📖 Електронний журнал</a>`,
+            Markup.inlineKeyboard([
+                [Markup.button.webApp('📅 Відкрити розклад', APP_URL)],
+                [Markup.button.callback('🏠 Головна', 'main_menu')]
+            ]).persistent()
+        );
+    }
 });
 
 bot.action('main_menu', async (ctx) => {
     await ctx.answerCbQuery();
-    await showWelcome(ctx);
+    if (ctx.chat.type === 'private') {
+        await showWelcome(ctx);
+    }
 });
 
-// Команди через меню
+// Команди через меню (працюють і в групі, і в приваті)
 bot.command(['rozklad', 'site', 'journal', 'about'], async (ctx) => {
     const cmd = ctx.message.text.slice(1).split('@')[0];
     if (cmd === 'rozklad') {
