@@ -1,0 +1,12 @@
+{
+  "name": "nemk-schedule-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for NEMK schedule",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "telegraf": "^4.15.3"
+  }
+}
