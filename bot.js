@@ -1,39 +1,46 @@
 const { Telegraf, Markup } = require('telegraf');
 
-const BOT_TOKEN = '8657049934:AAEi1J4MsbNNvFYsaOCwAJaERpcQwn0hlVc';
+const BOT_TOKEN = process.env.BOT_TOKEN || '8657049934:AAEi1J4MsbNNvFYsaOCwAJaERpcQwn0hlVc';
 const bot = new Telegraf(BOT_TOKEN);
 
 const APP_URL = 'https://rozklad.nemk.com.ua';
 const COLLEGE_URL = 'https://nemk.com.ua';
 const JOURNAL_URL = 'https://journalelectro.com';
 
-// ========== КЛАВІАТУРА (постійна) ==========
+// Постійна клавіатура
 const mainKeyboard = Markup.keyboard([
     ['🏠 Головна', '📅 Розклад'],
     ['🏫 Сайт коледжу', '📖 Журнал'],
     ['ℹ️ Про бота']
 ]).resize().persistent();
 
-// ========== ЗБЕРІГАЄМО ID ВІТАЛЬНОГО ПОВІДОМЛЕННЯ ==========
-let welcomeMessageId = null;         // для кожного чату потрібно окремий, але для простоти зробимо глобальним
-let lastResponseId = null;           // останнє відповідне повідомлення
+// Зберігаємо дані для кожного користувача окремо
+const userData = new Map(); // { userId: { welcomeMessageId, lastResponseId } }
 
-// ========== ДОПОМІЖНІ ФУНКЦІЇ ==========
-// Видалення останньої відповіді (не вітальної)
+// Отримати дані користувача
+function getUserData(userId) {
+    if (!userData.has(userId)) {
+        userData.set(userId, { welcomeMessageId: null, lastResponseId: null });
+    }
+    return userData.get(userId);
+}
+
+// Видалення останньої відповіді
 async function deleteLastResponse(ctx) {
-    if (lastResponseId) {
+    const data = getUserData(ctx.from.id);
+    if (data.lastResponseId) {
         try {
-            await ctx.telegram.deleteMessage(ctx.chat.id, lastResponseId);
+            await ctx.telegram.deleteMessage(ctx.chat.id, data.lastResponseId);
+            data.lastResponseId = null;
         } catch (err) {}
     }
 }
 
-// Показати головне повідомлення (якщо його немає – створити)
+// Показати головне повідомлення
 async function showWelcome(ctx) {
-    if (welcomeMessageId) {
-        // якщо воно вже існує – просто нічого не робимо
-        return;
-    }
+    const data = getUserData(ctx.from.id);
+    if (data.welcomeMessageId) return;
+    
     const userName = ctx.from.first_name || ctx.from.username || 'користувач';
     const msg = await ctx.replyWithHTML(
         `👋 <b>Вітаю, ${userName}!</b>\n\n` +
@@ -43,26 +50,26 @@ async function showWelcome(ctx) {
         `👇 Обери дію за допомогою кнопок нижче:`,
         mainKeyboard
     );
-    welcomeMessageId = msg.message_id;
+    data.welcomeMessageId = msg.message_id;
 }
 
-// Відправити відповідь (видаляє попередню відповідь, але не вітальне повідомлення)
+// Відправити відповідь
 async function sendReply(ctx, text, extraKeyboard = null) {
     await deleteLastResponse(ctx);
+    const data = getUserData(ctx.from.id);
     const options = extraKeyboard || mainKeyboard;
     const msg = await ctx.replyWithHTML(text, options);
-    lastResponseId = msg.message_id;
+    data.lastResponseId = msg.message_id;
 }
 
-// Видалення команди користувача (крім /start)
+// Видалення команди
 async function deleteUserCommand(ctx) {
     if (ctx.message && ctx.message.text && ctx.message.text !== '/start') {
         try { await ctx.deleteMessage(); } catch(e) {}
     }
 }
 
-// ========== ОБРОБНИКИ ==========
-// При будь-якому текстовому повідомленні – видаляємо, якщо це не /start
+// Видаляємо всі текстові повідомлення
 bot.use(async (ctx, next) => {
     if (ctx.message && ctx.message.text && ctx.message.text !== '/start') {
         try { await ctx.deleteMessage(); } catch(e) {}
@@ -73,16 +80,14 @@ bot.use(async (ctx, next) => {
 // Команда /start
 bot.start(async (ctx) => {
     await showWelcome(ctx);
-    // команду /start не видаляємо
 });
 
 // Кнопка "Головна"
 bot.hears('🏠 Головна', async (ctx) => {
-    // якщо вітальне повідомлення зникло – показуємо його знову
-    if (!welcomeMessageId) {
+    const data = getUserData(ctx.from.id);
+    if (!data.welcomeMessageId) {
         await showWelcome(ctx);
     } else {
-        // просто видаляємо останню відповідь, щоб чат був чистий
         await deleteLastResponse(ctx);
     }
 });
@@ -147,14 +152,15 @@ bot.hears('ℹ️ Про бота', async (ctx) => {
 // Інлайн-кнопка "Головна"
 bot.action('main_menu', async (ctx) => {
     await ctx.answerCbQuery();
-    if (!welcomeMessageId) {
+    const data = getUserData(ctx.from.id);
+    if (!data.welcomeMessageId) {
         await showWelcome(ctx);
     } else {
         await deleteLastResponse(ctx);
     }
 });
 
-// Команди (через меню Telegram) – для зручності
+// Команди через меню
 bot.command(['rozklad', 'site', 'journal', 'about'], async (ctx) => {
     await deleteUserCommand(ctx);
     const cmd = ctx.message.text.slice(1);
@@ -190,7 +196,7 @@ bot.command(['rozklad', 'site', 'journal', 'about'], async (ctx) => {
     }
 });
 
-// Меню бота (команди, що показуються в інтерфейсі)
+// Меню бота
 bot.telegram.setMyCommands([
     { command: 'start', description: '🏠 Головна' },
     { command: 'rozklad', description: '📅 Розклад' },
