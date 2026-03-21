@@ -51,7 +51,6 @@ async function showWelcome(ctx) {
         ? `👋 <b>Вітаю, ${userName}!</b>`
         : `👋 <b>Вітаю, ${userName}!</b>\n\nРозклад групи <b>${ctx.chat.title || 'цього чату'}</b>`;
     
-    // Клавіатуру показуємо ТІЛЬКИ в особистих чатах
     const options = isPrivate ? mainKeyboard : { reply_markup: { remove_keyboard: true } };
     
     const msg = await ctx.replyWithHTML(
@@ -59,7 +58,7 @@ async function showWelcome(ctx) {
         `🤖 Цей бот створено за підтримки <b>студентського самоврядування</b>\n` +
         `<b>Нововолинського електромеханічного фахового коледжу</b>\n\n` +
         `📚 Тут ви можете швидко переглянути актуальний розклад занять.\n\n` +
-        `👇 Обери дію за допомогою кнопок нижче:`,
+        `👇 Обери дію за допомогою команд: /rozklad, /site, /journal, /about`,
         options
     );
     data.welcomeMessageId = msg.message_id;
@@ -71,7 +70,6 @@ async function sendReply(ctx, text, extraKeyboard = null) {
     await deleteLastResponse(chatId, ctx);
     const data = getChatData(chatId);
     
-    // Клавіатуру показуємо ТІЛЬКИ в особистих чатах
     let options;
     if (extraKeyboard) {
         options = extraKeyboard;
@@ -121,6 +119,63 @@ bot.start(async (ctx) => {
     await showWelcome(ctx);
 });
 
+// Функція для відправки розкладу (однакова для кнопок і команд)
+async function sendSchedule(ctx) {
+    await sendReply(
+        ctx,
+        `📅 <b>Розклад занять</b>\n\nНатисніть кнопку нижче, щоб відкрити актуальний розклад:`,
+        Markup.inlineKeyboard([
+            [Markup.button.webApp('📖 Відкрити розклад', APP_URL)],
+            [Markup.button.callback('🏠 Головна', 'main_menu')]
+        ]).persistent()
+    );
+}
+
+// Функція для відправки сайту коледжу
+async function sendSite(ctx) {
+    await sendReply(
+        ctx,
+        `🏫 <b>Нововолинський електромеханічний фаховий коледж</b>\n\n` +
+        `<a href="${COLLEGE_URL}">nemk.com.ua</a>`,
+        Markup.inlineKeyboard([
+            [Markup.button.url('🌐 Перейти на сайт', COLLEGE_URL)],
+            [Markup.button.callback('🏠 Головна', 'main_menu')]
+        ]).persistent()
+    );
+}
+
+// Функція для відправки журналу
+async function sendJournal(ctx) {
+    await sendReply(
+        ctx,
+        `📖 <b>Електронний журнал</b>\n\n<a href="${JOURNAL_URL}">journalelectro.com</a>`,
+        Markup.inlineKeyboard([
+            [Markup.button.url('📖 Відкрити журнал', JOURNAL_URL)],
+            [Markup.button.callback('🏠 Головна', 'main_menu')]
+        ]).persistent()
+    );
+}
+
+// Функція для відправки інформації про бота
+async function sendAbout(ctx) {
+    await sendReply(
+        ctx,
+        `<b>🤖 Про бота</b>\n\n` +
+        `Цей бот створено для зручного доступу до розкладу занять.\n\n` +
+        `👨‍💻 <b>Розробник:</b> Ващук Роман\n` +
+        `🏫 <b>Коледж:</b> Нововолинський електромеханічний фаховий коледж\n` +
+        `🤝 <b>Підтримка:</b> студентське самоврядування\n\n` +
+        `<b>🔗 Корисні посилання:</b>\n` +
+        `• <a href="${APP_URL}">📅 Розклад занять</a>\n` +
+        `• <a href="${COLLEGE_URL}">🏫 Сайт коледжу</a>\n` +
+        `• <a href="${JOURNAL_URL}">📖 Електронний журнал</a>`,
+        Markup.inlineKeyboard([
+            [Markup.button.webApp('📅 Відкрити розклад', APP_URL)],
+            [Markup.button.callback('🏠 Головна', 'main_menu')]
+        ]).persistent()
+    );
+}
+
 // Обробка текстових кнопок ТІЛЬКИ в особистих чатах
 bot.hears('🏠 Головна', async (ctx) => {
     if (ctx.chat.type === 'private') {
@@ -130,62 +185,25 @@ bot.hears('🏠 Головна', async (ctx) => {
 
 bot.hears('📅 Розклад', async (ctx) => {
     if (ctx.chat.type === 'private') {
-        await sendReply(
-            ctx,
-            `📅 <b>Розклад занять</b>\n\nНатисніть кнопку нижче, щоб відкрити актуальний розклад:`,
-            Markup.inlineKeyboard([
-                [Markup.button.webApp('📖 Відкрити розклад', APP_URL)],
-                [Markup.button.callback('🏠 Головна', 'main_menu')]
-            ]).persistent()
-        );
+        await sendSchedule(ctx);
     }
 });
 
 bot.hears('🏫 Сайт коледжу', async (ctx) => {
     if (ctx.chat.type === 'private') {
-        await sendReply(
-            ctx,
-            `🏫 <b>Нововолинський електромеханічний фаховий коледж</b>\n\n` +
-            `<a href="${COLLEGE_URL}">nemk.com.ua</a>`,
-            Markup.inlineKeyboard([
-                [Markup.button.url('🌐 Перейти на сайт', COLLEGE_URL)],
-                [Markup.button.callback('🏠 Головна', 'main_menu')]
-            ]).persistent()
-        );
+        await sendSite(ctx);
     }
 });
 
 bot.hears('📖 Журнал', async (ctx) => {
     if (ctx.chat.type === 'private') {
-        await sendReply(
-            ctx,
-            `📖 <b>Електронний журнал</b>\n\n<a href="${JOURNAL_URL}">journalelectro.com</a>`,
-            Markup.inlineKeyboard([
-                [Markup.button.url('📖 Відкрити журнал', JOURNAL_URL)],
-                [Markup.button.callback('🏠 Головна', 'main_menu')]
-            ]).persistent()
-        );
+        await sendJournal(ctx);
     }
 });
 
 bot.hears('ℹ️ Про бота', async (ctx) => {
     if (ctx.chat.type === 'private') {
-        await sendReply(
-            ctx,
-            `<b>🤖 Про бота</b>\n\n` +
-            `Цей бот створено для зручного доступу до розкладу занять.\n\n` +
-            `👨‍💻 <b>Розробник:</b> Ващук Роман\n` +
-            `🏫 <b>Коледж:</b> Нововолинський електромеханічний фаховий коледж\n` +
-            `🤝 <b>Підтримка:</b> студентське самоврядування\n\n` +
-            `<b>🔗 Корисні посилання:</b>\n` +
-            `• <a href="${APP_URL}">📅 Розклад занять</a>\n` +
-            `• <a href="${COLLEGE_URL}">🏫 Сайт коледжу</a>\n` +
-            `• <a href="${JOURNAL_URL}">📖 Електронний журнал</a>`,
-            Markup.inlineKeyboard([
-                [Markup.button.webApp('📅 Відкрити розклад', APP_URL)],
-                [Markup.button.callback('🏠 Головна', 'main_menu')]
-            ]).persistent()
-        );
+        await sendAbout(ctx);
     }
 });
 
@@ -200,34 +218,13 @@ bot.action('main_menu', async (ctx) => {
 bot.command(['rozklad', 'site', 'journal', 'about'], async (ctx) => {
     const cmd = ctx.message.text.slice(1).split('@')[0];
     if (cmd === 'rozklad') {
-        await sendReply(
-            ctx,
-            `📅 <b>Розклад</b>\n\nНатисніть кнопку:`,
-            Markup.inlineKeyboard([[Markup.button.webApp('📖 Відкрити', APP_URL)]]).persistent()
-        );
+        await sendSchedule(ctx);
     } else if (cmd === 'site') {
-        await sendReply(
-            ctx,
-            `🏫 <b>Сайт</b>\n\n<a href="${COLLEGE_URL}">nemk.com.ua</a>`,
-            Markup.inlineKeyboard([[Markup.button.url('🌐 Перейти', COLLEGE_URL)]]).persistent()
-        );
+        await sendSite(ctx);
     } else if (cmd === 'journal') {
-        await sendReply(
-            ctx,
-            `📖 <b>Журнал</b>\n\n<a href="${JOURNAL_URL}">journalelectro.com</a>`,
-            Markup.inlineKeyboard([[Markup.button.url('📖 Відкрити', JOURNAL_URL)]]).persistent()
-        );
+        await sendJournal(ctx);
     } else if (cmd === 'about') {
-        await sendReply(
-            ctx,
-            `<b>🤖 Про бота</b>\n\n` +
-            `Розробник: Ващук Роман\n` +
-            `Коледж: НЕМК\n` +
-            `📞 @vascuk\n\n` +
-            `<a href="${APP_URL}">📅 Розклад</a> | ` +
-            `<a href="${COLLEGE_URL}">🏫 Сайт</a> | ` +
-            `<a href="${JOURNAL_URL}">📖 Журнал</a>`
-        );
+        await sendAbout(ctx);
     }
 });
 
