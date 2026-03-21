@@ -119,15 +119,24 @@ bot.start(async (ctx) => {
     await showWelcome(ctx);
 });
 
-// Функція для відправки розкладу (однакова для кнопок і команд)
+// Функція для відправки розкладу
 async function sendSchedule(ctx) {
+    const isPrivate = ctx.chat.type === 'private';
+    // У приваті – webApp, у групі – звичайне посилання
+    const keyboard = isPrivate
+        ? Markup.inlineKeyboard([
+            [Markup.button.webApp('📖 Відкрити розклад', APP_URL)],
+            [Markup.button.callback('🏠 Головна', 'main_menu')]
+          ]).persistent()
+        : Markup.inlineKeyboard([
+            [Markup.button.url('📖 Відкрити розклад', APP_URL)],
+            [Markup.button.callback('🏠 Головна', 'main_menu')]
+          ]).persistent();
+    
     await sendReply(
         ctx,
         `📅 <b>Розклад занять</b>\n\nНатисніть кнопку нижче, щоб відкрити актуальний розклад:`,
-        Markup.inlineKeyboard([
-            [Markup.button.webApp('📖 Відкрити розклад', APP_URL)],
-            [Markup.button.callback('🏠 Головна', 'main_menu')]
-        ]).persistent()
+        keyboard
     );
 }
 
@@ -211,6 +220,11 @@ bot.action('main_menu', async (ctx) => {
     await ctx.answerCbQuery();
     if (ctx.chat.type === 'private') {
         await showWelcome(ctx);
+    } else {
+        // У групі inline кнопка "Головна" – просто видаляємо повідомлення
+        try {
+            await ctx.deleteMessage();
+        } catch(e) {}
     }
 });
 
