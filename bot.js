@@ -7,17 +7,14 @@ const APP_URL = 'https://rozklad.nemk.com.ua';
 const COLLEGE_URL = 'https://nemk.com.ua';
 const JOURNAL_URL = 'https://journalelectro.com';
 
-// Постійна клавіатура
 const mainKeyboard = Markup.keyboard([
     ['🏠 Головна', '📅 Розклад'],
     ['🏫 Сайт коледжу', '📖 Журнал'],
     ['ℹ️ Про бота']
 ]).resize().persistent();
 
-// Зберігаємо дані для кожного користувача окремо
-const userData = new Map(); // { userId: { welcomeMessageId, lastResponseId } }
+const userData = new Map();
 
-// Отримати дані користувача
 function getUserData(userId) {
     if (!userData.has(userId)) {
         userData.set(userId, { welcomeMessageId: null, lastResponseId: null });
@@ -25,7 +22,6 @@ function getUserData(userId) {
     return userData.get(userId);
 }
 
-// Видалення останньої відповіді
 async function deleteLastResponse(ctx) {
     const data = getUserData(ctx.from.id);
     if (data.lastResponseId) {
@@ -36,10 +32,16 @@ async function deleteLastResponse(ctx) {
     }
 }
 
-// Показати головне повідомлення
 async function showWelcome(ctx) {
     const data = getUserData(ctx.from.id);
-    if (data.welcomeMessageId) return;
+    
+    // Видаляємо старе вітальне повідомлення
+    if (data.welcomeMessageId) {
+        try {
+            await ctx.telegram.deleteMessage(ctx.chat.id, data.welcomeMessageId);
+        } catch(e) {}
+        data.welcomeMessageId = null;
+    }
     
     const userName = ctx.from.first_name || ctx.from.username || 'користувач';
     const msg = await ctx.replyWithHTML(
@@ -53,7 +55,6 @@ async function showWelcome(ctx) {
     data.welcomeMessageId = msg.message_id;
 }
 
-// Відправити відповідь
 async function sendReply(ctx, text, extraKeyboard = null) {
     await deleteLastResponse(ctx);
     const data = getUserData(ctx.from.id);
@@ -62,14 +63,12 @@ async function sendReply(ctx, text, extraKeyboard = null) {
     data.lastResponseId = msg.message_id;
 }
 
-// Видалення команди
 async function deleteUserCommand(ctx) {
     if (ctx.message && ctx.message.text && ctx.message.text !== '/start') {
         try { await ctx.deleteMessage(); } catch(e) {}
     }
 }
 
-// Видаляємо всі текстові повідомлення
 bot.use(async (ctx, next) => {
     if (ctx.message && ctx.message.text && ctx.message.text !== '/start') {
         try { await ctx.deleteMessage(); } catch(e) {}
@@ -84,12 +83,7 @@ bot.start(async (ctx) => {
 
 // Кнопка "Головна"
 bot.hears('🏠 Головна', async (ctx) => {
-    const data = getUserData(ctx.from.id);
-    if (!data.welcomeMessageId) {
-        await showWelcome(ctx);
-    } else {
-        await deleteLastResponse(ctx);
-    }
+    await showWelcome(ctx);
 });
 
 // Кнопка "Розклад"
@@ -149,18 +143,11 @@ bot.hears('ℹ️ Про бота', async (ctx) => {
     );
 });
 
-// Інлайн-кнопка "Головна"
 bot.action('main_menu', async (ctx) => {
     await ctx.answerCbQuery();
-    const data = getUserData(ctx.from.id);
-    if (!data.welcomeMessageId) {
-        await showWelcome(ctx);
-    } else {
-        await deleteLastResponse(ctx);
-    }
+    await showWelcome(ctx);
 });
 
-// Команди через меню
 bot.command(['rozklad', 'site', 'journal', 'about'], async (ctx) => {
     await deleteUserCommand(ctx);
     const cmd = ctx.message.text.slice(1);
@@ -196,7 +183,6 @@ bot.command(['rozklad', 'site', 'journal', 'about'], async (ctx) => {
     }
 });
 
-// Меню бота
 bot.telegram.setMyCommands([
     { command: 'start', description: '🏠 Головна' },
     { command: 'rozklad', description: '📅 Розклад' },
@@ -205,7 +191,6 @@ bot.telegram.setMyCommands([
     { command: 'about', description: 'ℹ️ Про бота' }
 ]);
 
-// Запуск
 bot.launch()
     .then(() => console.log('✅ Бот запущено!'))
     .catch(err => console.error('❌ Помилка:', err));
