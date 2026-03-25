@@ -1,7 +1,7 @@
 const { Telegraf, Markup } = require('telegraf');
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '8657049934:AAEi1J4MsbNNvFYsaOCwAJaERpcQwn0hlVc';
-const bot = new Telegraf(BOT_TOKEN);
+const bot = new Telegraf(BOTTOKEN);
 
 const APP_URL = 'https://rozklad.nemk.com.ua';
 const COLLEGE_URL = 'https://nemk.com.ua';
