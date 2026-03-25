@@ -1,12 +1,14 @@
 const TelegramBot = require('node-telegram-bot-api');
 
-// Вставте сюди токен вашого бота
-const BOT_TOKEN = '8657049934:AAH5DwfJA8MHyHTPEksmYlXt_qAAnb0lx_Y';
+const BOT_TOKEN = process.env.BOT_TOKEN;
 
-// Створюємо бота
+if (!BOT_TOKEN) {
+  console.error('❌ Помилка: BOT_TOKEN не знайдено!');
+  process.exit(1);
+}
+
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-// Текст відповіді
 const AUTO_REPLY = `
 🚨 *УВАГА! ТЕХНІЧНІ ПРОБЛЕМИ* 🚨
 
@@ -19,12 +21,9 @@ const AUTO_REPLY = `
 Дякуємо за розуміння! 🙏
 `;
 
-// Слухаємо всі текстові повідомлення
 bot.on('message', (msg) => {
   const chatId = msg.chat.id;
-  
-  // Відправляємо автоматичну відповідь
   bot.sendMessage(chatId, AUTO_REPLY, { parse_mode: 'Markdown' });
 });
 
-console.log('✅ Бот запущено! Автовідповідь працює.');
+console.log('✅ Бот запущено!');
