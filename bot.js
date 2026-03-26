@@ -122,6 +122,7 @@ bot.start(async (ctx) => {
 // Функція для відправки розкладу
 async function sendSchedule(ctx) {
     const isPrivate = ctx.chat.type === 'private';
+    // У приваті – webApp, у групі – звичайне посилання
     const keyboard = isPrivate
         ? Markup.inlineKeyboard([
             [Markup.button.webApp('📖 Відкрити розклад', APP_URL)],
@@ -220,6 +221,7 @@ bot.action('main_menu', async (ctx) => {
     if (ctx.chat.type === 'private') {
         await showWelcome(ctx);
     } else {
+        // У групі inline кнопка "Головна" – просто видаляємо повідомлення
         try {
             await ctx.deleteMessage();
         } catch(e) {}
@@ -249,7 +251,6 @@ bot.telegram.setMyCommands([
     { command: 'about', description: 'ℹ️ Про бота' }
 ]);
 
-// Запуск
 bot.launch()
     .then(() => console.log('✅ Бот запущено!'))
     .catch(err => console.error('❌ Помилка:', err));
