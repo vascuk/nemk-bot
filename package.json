@@ -2,7 +2,7 @@
   "name": "nemk-schedule-bot",
   "version": "1.0.0",
   "description": "Telegram bot for NEMK schedule",
-  "main": "bot.js",
+  "main": "bot_2.js",
   "scripts": {
     "start": "node bot.js"
   },
