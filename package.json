@@ -4,7 +4,7 @@
   "description": "Telegram bot for NEMK schedule",
   "main": "bot_2.js",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node bot_2.js"
   },
   "dependencies": {
     "telegraf": "^4.15.3"
