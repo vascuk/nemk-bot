@@ -1,15 +1,29 @@
+const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
+const token = process.env.BOT_TOKEN;
+const url = process.env.RAILWAY_PUBLIC_DOMAIN; // Railway автоматично дає цю змінну
 
-if (!BOT_TOKEN) {
-  console.error('❌ Помилка: BOT_TOKEN не знайдено!');
-  process.exit(1);
+if (!token) {
+    console.error('❌ BOT_TOKEN не встановлено');
+    process.exit(1);
 }
 
-const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+const bot = new TelegramBot(token);
+const app = express();
 
-const AUTO_REPLY = `
+app.use(express.json());
+
+// Вебхук для Telegram
+app.post(`/webhook/${token}`, (req, res) => {
+    bot.processUpdate(req.body);
+    res.sendStatus(200);
+});
+
+// Обробка повідомлень
+bot.on('message', (msg) => {
+    const chatId = msg.chat.id;
+    const reply = `
 🚨 *УВАГА! ТЕХНІЧНІ ПРОБЛЕМИ* 🚨
 
 На жаль, наразі *НЕ ПРАЦЮЮТЬ*:
@@ -20,10 +34,19 @@ const AUTO_REPLY = `
 
 Дякуємо за розуміння! 🙏
 `;
-
-bot.on('message', (msg) => {
-  const chatId = msg.chat.id;
-  bot.sendMessage(chatId, AUTO_REPLY, { parse_mode: 'Markdown' });
+    bot.sendMessage(chatId, reply, { parse_mode: 'Markdown' });
 });
 
-console.log('✅ Бот запущено!');
+// Встановлюємо вебхук при запуску
+const port = process.env.PORT || 3000;
+app.listen(port, async () => {
+    console.log(`🚀 Сервер запущено на порту ${port}`);
+    
+    const webhookUrl = `https://${url}/webhook/${token}`;
+    try {
+        await bot.setWebHook(webhookUrl);
+        console.log(`✅ Webhook встановлено: ${webhookUrl}`);
+    } catch (err) {
+        console.error('❌ Помилка встановлення webhook:', err.message);
+    }
+});
