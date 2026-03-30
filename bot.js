@@ -251,9 +251,21 @@ bot.telegram.setMyCommands([
     { command: 'about', description: 'ℹ️ Про бота' }
 ]);
 
-bot.launch()
-    .then(() => console.log('✅ Бот запущено!'))
-    .catch(err => console.error('❌ Помилка:', err));
+// ========== ГОЛОВНА ЗМІНА ТУТ ==========
+// Додаємо видалення webhook перед запуском
+(async () => {
+    try {
+        // Видаляємо webhook, якщо він був встановлений
+        await bot.telegram.deleteWebhook();
+        console.log('✅ Webhook видалено');
+        
+        // Запускаємо бота в режимі polling
+        await bot.launch();
+        console.log('✅ Бот запущено!');
+    } catch (err) {
+        console.error('❌ Помилка:', err);
+    }
+})();
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
