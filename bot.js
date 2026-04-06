@@ -167,11 +167,11 @@ async function sendAbout(ctx) {
         `👨‍💻 <b>Розробник:</b> Ващук Роман\n` +
         `🏫 <b>Коледж:</b> Нововолинський електромеханічний фаховий коледж\n` +
         `🤝 <b>Підтримка:</b> студентське самоврядування\n\n` +
-        `🔗 <b>Корисні посилання:</b>\n` +
-        `• 🏫 <a href="${COLLEGE_URL}">Сайт коледжу</a>\n` +
-        `• 📖 <a href="${JOURNAL_URL}">Електронний журнал</a>\n\n` +
-        `📞 <i>З питань:</i> @vascuk`,
+        `<b>🔗 Корисні посилання:</b>\n` +
+        `• <a href="${COLLEGE_URL}">🏫 Сайт коледжу</a>\n` +
+        `• <a href="${JOURNAL_URL}">📖 Електронний журнал</a>`,
         Markup.inlineKeyboard([
+            [Markup.button.webApp('📅 Відкрити розклад', APP_URL)],
             [Markup.button.callback('🏠 Головна', 'main_menu')]
         ]).persistent()
     );
