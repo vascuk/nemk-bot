@@ -3,7 +3,6 @@ const { Telegraf, Markup } = require('telegraf');
 const BOT_TOKEN = process.env.BOT_TOKEN || '8657049934:AAHwXIa5P3l76KHkiH-lS_qOwIIoHN1Zddw';
 const bot = new Telegraf(BOT_TOKEN);
 
-const APP_URL = 'https://student-schedule-production.up.railway.app';
 const COLLEGE_URL = 'https://nemk.com.ua';
 const JOURNAL_URL = 'https://journalelectro.com';
 
@@ -119,24 +118,18 @@ bot.start(async (ctx) => {
     await showWelcome(ctx);
 });
 
-// Функція для відправки розкладу
+// Функція для відправки розкладу (ТЕХНІЧНІ ПРОБЛЕМИ)
 async function sendSchedule(ctx) {
-    const isPrivate = ctx.chat.type === 'private';
-    // У приваті – webApp, у групі – звичайне посилання
-    const keyboard = isPrivate
-        ? Markup.inlineKeyboard([
-            [Markup.button.webApp('📖 Відкрити розклад', APP_URL)],
-            [Markup.button.callback('🏠 Головна', 'main_menu')]
-          ]).persistent()
-        : Markup.inlineKeyboard([
-            [Markup.button.url('📖 Відкрити розклад', APP_URL)],
-            [Markup.button.callback('🏠 Головна', 'main_menu')]
-          ]).persistent();
-    
     await sendReply(
         ctx,
-        `📅 <b>Розклад занять</b>\n\nНатисніть кнопку нижче, щоб відкрити актуальний розклад:`,
-        keyboard
+        `⚠️ <b>ТЕХНІЧНІ ПРОБЛЕМИ</b>\n\n` +
+        `На жаль, сайт з розкладом тимчасово не працює через технічні неполадки.\n\n` +
+        `🔧 Ми вже працюємо над відновленням.\n\n` +
+        `📅 <b>Актуальний розклад уточнюйте у викладача або старости.</b>\n\n` +
+        `Дякуємо за розуміння! 🙏`,
+        Markup.inlineKeyboard([
+            [Markup.button.callback('🏠 Головна', 'main_menu')]
+        ]).persistent()
     );
 }
 
@@ -174,12 +167,11 @@ async function sendAbout(ctx) {
         `👨‍💻 <b>Розробник:</b> Ващук Роман\n` +
         `🏫 <b>Коледж:</b> Нововолинський електромеханічний фаховий коледж\n` +
         `🤝 <b>Підтримка:</b> студентське самоврядування\n\n` +
-        `<b>🔗 Корисні посилання:</b>\n` +
-        `• <a href="${APP_URL}">📅 Розклад занять</a>\n` +
-        `• <a href="${COLLEGE_URL}">🏫 Сайт коледжу</a>\n` +
-        `• <a href="${JOURNAL_URL}">📖 Електронний журнал</a>`,
+        `🔗 <b>Корисні посилання:</b>\n` +
+        `• 🏫 <a href="${COLLEGE_URL}">Сайт коледжу</a>\n` +
+        `• 📖 <a href="${JOURNAL_URL}">Електронний журнал</a>\n\n` +
+        `📞 <i>З питань:</i> @vascuk`,
         Markup.inlineKeyboard([
-            [Markup.button.webApp('📅 Відкрити розклад', APP_URL)],
             [Markup.button.callback('🏠 Головна', 'main_menu')]
         ]).persistent()
     );
@@ -221,7 +213,6 @@ bot.action('main_menu', async (ctx) => {
     if (ctx.chat.type === 'private') {
         await showWelcome(ctx);
     } else {
-        // У групі inline кнопка "Головна" – просто видаляємо повідомлення
         try {
             await ctx.deleteMessage();
         } catch(e) {}
@@ -251,15 +242,11 @@ bot.telegram.setMyCommands([
     { command: 'about', description: 'ℹ️ Про бота' }
 ]);
 
-// ========== ГОЛОВНА ЗМІНА ТУТ ==========
-// Додаємо видалення webhook перед запуском
+// ========== ЗАПУСК ==========
 (async () => {
     try {
-        // Видаляємо webhook, якщо він був встановлений
         await bot.telegram.deleteWebhook();
         console.log('✅ Webhook видалено');
-        
-        // Запускаємо бота в режимі polling
         await bot.launch();
         console.log('✅ Бот запущено!');
     } catch (err) {
