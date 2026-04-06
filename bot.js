@@ -171,7 +171,6 @@ async function sendAbout(ctx) {
         `• <a href="${COLLEGE_URL}">🏫 Сайт коледжу</a>\n` +
         `• <a href="${JOURNAL_URL}">📖 Електронний журнал</a>`,
         Markup.inlineKeyboard([
-            [Markup.button.webApp('📅 Відкрити розклад', APP_URL)],
             [Markup.button.callback('🏠 Головна', 'main_menu')]
         ]).persistent()
     );
